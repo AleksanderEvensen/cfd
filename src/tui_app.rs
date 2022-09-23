@@ -1,6 +1,5 @@
 use std::{error::Error, thread, sync::mpsc, path::{PathBuf}, time::Duration};
 
-use unicode_width::UnicodeWidthStr;
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use tui::{
     backend::{Backend},
@@ -82,7 +81,7 @@ impl TUIApp {
 		if visible.len() == 0 {
 			return self.paths.clone();
 		}
-		return visible
+		return visible;
 		
 	}
 
@@ -96,18 +95,18 @@ impl TUIApp {
 
 pub fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
-	path: &str
+	path: PathBuf,
+	depth: u8
 ) -> Result<Option<String>, Box<dyn Error>> {
 
-	let mut app = TUIApp::new(PathBuf::from(path));
+	let mut app = TUIApp::new(path.clone());
     app.on_type();
 
 	let (sender, reciever) = mpsc::channel::<PathBuf>();
 
-
-	let search_path = PathBuf::from(path);
+	let search_path = path;
 	thread::spawn(move || {
-		walker::run(search_path, 4, sender);
+		walker::run(search_path, depth, sender);
 	});
 
 	loop {
@@ -198,7 +197,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &TUIApp) {
     f.render_widget(input, chunks[1]);
     f.set_cursor(
         // Put cursor past the end of the input text
-        chunks[1].x + app.input.width() as u16 + 2,
+        chunks[1].x + app.input.len() as u16 + 2,
         // Move one line down, from the border to the input line
         chunks[1].y,
     );
