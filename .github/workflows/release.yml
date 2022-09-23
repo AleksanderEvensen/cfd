@@ -1,0 +1,15 @@
+name: Create Release binary
+
+on:
+  push:
+    tags:
+    # Run on version number tags
+      - "v*"
+
+jobs: 
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}

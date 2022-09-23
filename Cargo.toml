@@ -1,5 +1,7 @@
 [package]
 name = "cfd"
+authors = ["Aleksander Evensen"]
+description = "Finding directories using a fuzzy finding algorithm"
 version = "0.1.0"
 edition = "2021"
 
