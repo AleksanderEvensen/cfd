@@ -82,7 +82,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ./x86_64-windows/cfd-x86_64-windows.zip
-            ./32bit-windows/cfd-32bit-windows.zip
-            ./x86_64-linux/cfd-x86_64-linux.tar.gz
-            ./32bit-linux/cfd-32bit-linux.tar.gz
+            ./cfd/x86_64-windows/cfd-x86_64-windows.zip
+            ./cfd/32bit-windows/cfd-32bit-windows.zip
+            ./cfd/x86_64-linux/cfd-x86_64-linux.tar.gz
+            ./cfd/32bit-linux/cfd-32bit-linux.tar.gz
