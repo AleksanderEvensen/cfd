@@ -56,11 +56,18 @@ jobs:
           cd -
 
       - name: Post Build | Package
-        if: matrix.target != 'x86_64-pc-windows-gnu' && matrix.target != 'i686-pc-windows-gnu'
+        # if: matrix.target != 'x86_64-pc-windows-gnu' && matrix.target != 'i686-pc-windows-gnu'
         run: |
           cd target/${{ matrix.target }}/release
           tar czvf ../../../${{ matrix.name }} cfd
           cd -
+
+      # Upload files for download in other job
+      - name: Post Build | Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ matrix.name }}
 
   publish_release:
     name: Publish Release on Github
@@ -68,6 +75,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
