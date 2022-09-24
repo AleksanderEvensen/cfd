@@ -78,11 +78,15 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v3
 
+      - name: List Files
+        run: |
+          ls -laR
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ./cfd/x86_64-windows/cfd-x86_64-windows.zip
-            ./cfd/32bit-windows/cfd-32bit-windows.zip
-            ./cfd/x86_64-linux/cfd-x86_64-linux.tar.gz
-            ./cfd/32bit-linux/cfd-32bit-linux.tar.gz
+            ./x86_64-pc-windows-gnu/cfd-x86_64-windows.zip
+            ./i686-pc-windows-gnu/cfd-32bit-windows.zip
+            ./x86_64-unknown-linux-gnu/cfd-x86_64-linux.tar.gz
+            ./i686-unknown-linux-gnu/cfd-32bit-linux.tar.gz
