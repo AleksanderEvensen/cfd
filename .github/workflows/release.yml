@@ -45,6 +45,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
+          use-cross: true
           args: --release --target ${{ matrix.target }}
 
       - name: Post Build | Package (Windows)
