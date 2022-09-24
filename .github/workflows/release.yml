@@ -56,7 +56,7 @@ jobs:
           cd -
 
       - name: Post Build | Package
-        # if: matrix.target != 'x86_64-pc-windows-gnu' && matrix.target != 'i686-pc-windows-gnu'
+        if: matrix.target != 'x86_64-pc-windows-gnu' && matrix.target != 'i686-pc-windows-gnu'
         run: |
           cd target/${{ matrix.target }}/release
           tar czvf ../../../${{ matrix.name }} cfd
