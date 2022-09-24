@@ -3,13 +3,75 @@ name: Create Release binary
 on:
   push:
     tags:
-    # Run on version number tags
-      - "v*"
+      # Run on version number tags
+      - "v*.*.*"
 
-jobs: 
-  release:
-    name: Release
+permissions:
+  contents: write
+
+jobs:
+  build_binaries:
+    name: Build the rust binaries
     runs-on: ubuntu-latest
-    outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-gnu
+            name: cfd-x86_64-windows.zip
+
+          - target: i686-pc-windows-gnu
+            name: cfd-32bit-windows.zip
+
+          - target: x86_64-unknown-linux-gnu
+            name: cfd-x86_64-linux.tar.gz
+
+          - target: i686-unknown-linux-gnu
+            name: cfd-32bit-linux.tar.gz
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup | Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Build | Rust Cargo
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
+
+      - name: Post Build | Package (Windows)
+        if: matrix.target == 'x86_64-pc-windows-gnu' || matrix.target == 'i686-pc-windows-gnu'
+        run: |
+          cd target/${{ matrix.target }}/release
+          zip ../../../${{ matrix.name }} cfd.exe
+          cd -
+
+      - name: Post Build | Package
+        if: matrix.target != 'x86_64-pc-windows-gnu' && matrix.target != 'i686-pc-windows-gnu'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czvf ../../../${{ matrix.name }} cfd
+          cd -
+
+  publish_release:
+    name: Publish Release on Github
+    needs: [build_binaries]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            cfd-x86_64-windows.zip
+            cfd-32bit-windows.zip
+            cfd-x86_64-linux.tar.gz
+            cfd-32bit-linux.tar.gz
