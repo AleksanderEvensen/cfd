@@ -7,9 +7,9 @@ pub fn run(root_path: PathBuf, depth: u8, sender: Sender<PathBuf>) {
 fn recurse(path: PathBuf, depth: u8, max_depth: u8, sender: &Sender<PathBuf>) -> Vec<PathBuf> {
     let mut paths = vec![];
     let children = get_all_dirs(path);
-	children.iter().for_each(|child| {
-		sender.send(child.clone()).unwrap();
-	});
+    children.iter().for_each(|child| {
+        sender.send(child.clone()).unwrap();
+    });
     paths.append(&mut children.clone());
 
     if depth < max_depth {

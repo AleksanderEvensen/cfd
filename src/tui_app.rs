@@ -1,8 +1,8 @@
-use std::{error::Error, thread, sync::mpsc, path::{PathBuf}, time::Duration};
+use std::{error::Error, path::PathBuf, sync::mpsc, thread, time::Duration};
 
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
 use tui::{
-    backend::{Backend},
+    backend::Backend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
@@ -10,148 +10,146 @@ use tui::{
     Frame, Terminal,
 };
 
-use crossterm::{
-    event::{self, Event, KeyCode},
-};
+use crossterm::event::{self, Event, KeyCode};
 
 use crate::walker;
 
-
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct PathEntry {
-	text: String,
-	score: i64,
-	indecies: Vec<usize>
+    text: String,
+    score: i64,
+    indecies: Vec<usize>,
 }
 
 impl PathEntry {
+    fn new(path: PathBuf) -> Self {
+        Self {
+            text: String::from(path.to_string_lossy()),
+            indecies: vec![],
+            score: 0,
+        }
+    }
 
-	fn new(path: PathBuf) -> Self {
-		Self {
-			text: String::from(path.to_string_lossy()),
-			indecies: vec![],
-			score: 0
-		}
-	}
-
-	fn calculate_score(&mut self, search: &String, matcher: &SkimMatcherV2) {
-		if let Some(( score, indecies )) = matcher.fuzzy_indices(&self.text, search) {
-			self.score = score;
-			self.indecies = indecies;
-		} else {
-			self.score = 0;
-			self.indecies = vec![];
-		}
-	}
+    fn calculate_score(&mut self, search: &String, matcher: &SkimMatcherV2) {
+        if let Some((score, indecies)) = matcher.fuzzy_indices(&self.text, search) {
+            self.score = score;
+            self.indecies = indecies;
+        } else {
+            self.score = 0;
+            self.indecies = vec![];
+        }
+    }
 }
 
-
 struct TUIApp {
-	search_path: PathBuf,
+    search_path: PathBuf,
     input: String,
     selected: i32,
     paths: Vec<PathEntry>,
-	visible_count: i32
+    visible_count: i32,
 }
 
 impl TUIApp {
     fn new(path: PathBuf) -> Self {
         Self {
-			search_path: path,
+            search_path: path,
             input: String::new(),
             selected: 0,
             paths: vec![],
-			visible_count: 0
+            visible_count: 0,
         }
     }
 
     fn on_type(&mut self) {
         let matcher = SkimMatcherV2::default();
-		for i in 0..self.paths.len() {
-			self.paths.get_mut(i).unwrap().calculate_score(&self.input, &matcher);
-		}
-		self.visible_count = self.visible_paths().len() as i32;
+        for i in 0..self.paths.len() {
+            self.paths
+                .get_mut(i)
+                .unwrap()
+                .calculate_score(&self.input, &matcher);
+        }
+        self.visible_count = self.visible_paths().len() as i32;
         if self.selected > self.visible_count {
             self.selected = self.visible_count;
         }
     }
-	
-	fn visible_paths(&self) -> Vec<PathEntry> {
-		let visible: Vec<PathEntry> = self.paths.iter().filter(|path| path.score > 0).cloned().collect();
-		if visible.len() == 0 {
-			return self.paths.clone();
-		}
-		return visible;
-		
-	}
 
+    fn visible_paths(&self) -> Vec<PathEntry> {
+        let visible: Vec<PathEntry> = self
+            .paths
+            .iter()
+            .filter(|path| path.score > 0)
+            .cloned()
+            .collect();
+        if visible.len() == 0 {
+            return self.paths.clone();
+        }
+        return visible;
+    }
 
-	fn add_path(&mut self, path: PathBuf) {
-		self.paths.push(PathEntry::new(path));
-	}
+    fn add_path(&mut self, path: PathBuf) {
+        self.paths.push(PathEntry::new(path));
+    }
 }
-
-
 
 pub fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
-	path: PathBuf,
-	depth: u8
+    path: PathBuf,
+    depth: u8,
 ) -> Result<Option<String>, Box<dyn Error>> {
-
-	let mut app = TUIApp::new(path.clone());
+    let mut app = TUIApp::new(path.clone());
     app.on_type();
 
-	let (sender, reciever) = mpsc::channel::<PathBuf>();
+    let (sender, reciever) = mpsc::channel::<PathBuf>();
 
-	let search_path = path;
-	thread::spawn(move || {
-		walker::run(search_path, depth, sender);
-	});
+    let search_path = path;
+    thread::spawn(move || {
+        walker::run(search_path, depth, sender);
+    });
 
-	loop {
-		if let Ok(data) = reciever.recv() {
-			app.add_path(data);
-			terminal.draw(|f| ui(f, &app))?;
-		}
-		
-		if let Ok(event_ready) = event::poll(Duration::from_secs(0)) {
-			if event_ready {
-				if let Event::Key(key) = event::read()? {
-					app.on_type();
-					match key.code {
-						KeyCode::Enter => {
-							// TODO: Set location to the current selected path
+    loop {
+        if let Ok(data) = reciever.recv() {
+            app.add_path(data);
+            terminal.draw(|f| ui(f, &app))?;
+        }
 
-							if let Some(entry) = app.visible_paths().get(app.selected as usize) {
-								return Ok(Some(entry.text.clone()));
-							}
-							return Ok(None);
-						}
-						KeyCode::Down => {
-							if app.selected + 1 < app.visible_count as i32 {
-								app.selected += 1;
-							}
-						}
-						KeyCode::Up => {
-							if app.selected - 1 >= 0 {
-								app.selected -= 1;
-							}
-						}
-		
-						KeyCode::Char(c) => {
-							app.input.push(c);
-						}
-						KeyCode::Backspace => {
-							app.input.pop();
-						}
-						KeyCode::Esc => return Ok(None),
-						_ => {}
-					}
-				}
-				terminal.draw(|f| ui(f, &app))?;
-			}
-		}
+        if let Ok(event_ready) = event::poll(Duration::from_secs(0)) {
+            if event_ready {
+                if let Event::Key(key) = event::read()? {
+                    match key.code {
+                        KeyCode::Enter => {
+                            // TODO: Set location to the current selected path
+
+                            if let Some(entry) = app.visible_paths().get(app.selected as usize) {
+                                return Ok(Some(entry.text.clone()));
+                            }
+                            return Ok(None);
+                        }
+                        KeyCode::Down => {
+                            if app.selected + 1 < app.visible_count as i32 {
+                                app.selected += 1;
+                            }
+                        }
+                        KeyCode::Up => {
+                            if app.selected - 1 >= 0 {
+                                app.selected -= 1;
+                            }
+                        }
+
+                        KeyCode::Char(c) => {
+                            app.input.push(c);
+                        }
+                        KeyCode::Backspace => {
+                            app.input.pop();
+                        }
+                        KeyCode::Esc => return Ok(None),
+                        _ => {}
+                    }
+                }
+                app.on_type();
+                terminal.draw(|f| ui(f, &app))?;
+            }
+        }
     }
 }
 
@@ -169,9 +167,9 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &TUIApp) {
         )
         .split(f.size());
 
-	let full_path = std::fs::canonicalize(&app.search_path).unwrap();
-	let full_path = full_path.to_string_lossy();
-	let full_path = full_path.trim();
+    let full_path = std::fs::canonicalize(&app.search_path).unwrap();
+    let full_path = full_path.to_string_lossy();
+    let full_path = full_path.trim();
 
     let text = Text::from(Spans::from(vec![
         Span::raw("Search for path | Navigate with "),
@@ -184,7 +182,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &TUIApp) {
         Span::raw("Press "),
         Span::styled("<Esc>", Style::default().add_modifier(Modifier::BOLD)),
         Span::raw(" to exit | Searching: "),
-		Span::styled(full_path, Style::default().add_modifier(Modifier::BOLD))
+        Span::styled(full_path, Style::default().add_modifier(Modifier::BOLD)),
     ]));
     let help_message = Paragraph::new(text);
     f.render_widget(help_message, chunks[0]);
@@ -215,11 +213,13 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &TUIApp) {
     .style(Style::default().add_modifier(Modifier::DIM));
     f.render_widget(result_count, chunks[2]);
 
-    let paths: Vec<ListItem> = app.visible_paths()
+    let visible_paths = app.visible_paths();
+
+    let paths: Vec<ListItem> = visible_paths
         .iter()
         .enumerate()
         .map(|(i, m)| {
-            let content = Spans::from(vec![
+            let mut spans = vec![
                 Span::styled(
                     if i as i32 == app.selected { ">" } else { " " },
                     Style::default()
@@ -227,12 +227,33 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &TUIApp) {
                         .add_modifier(Modifier::DIM)
                         .add_modifier(Modifier::BOLD),
                 ),
-				Span::raw(" "),
-                Span::styled(format!("{}", m.text), if i as i32 == app.selected { Style::default().bg(Color::Indexed(8)) } else { Style::default() }),
-            ]);
+                Span::raw(" "),
+            ];
+            spans.append(create_path_span(m).as_mut());
+            let content = Spans::from(spans);
             ListItem::new(content)
         })
         .collect();
     let messages = List::new(paths).block(Block::default());
     f.render_widget(messages, chunks[3]);
+}
+
+fn create_path_span(entry: &PathEntry) -> Vec<Span> {
+    entry
+        .text
+        .chars()
+        .enumerate()
+        .map(|(i, chr)| {
+            if entry.indecies.contains(&i) {
+                Span::styled(
+                    chr.to_string(),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                )
+            } else {
+                Span::raw(chr.to_string())
+            }
+        })
+        .collect()
 }
