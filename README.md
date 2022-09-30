@@ -29,4 +29,4 @@ cfd() {
 }
 ```
 
-![Program somewhat in action](images/showcase.gif)
+![CFD in action](images/showcase.gif)

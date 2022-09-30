@@ -2,7 +2,7 @@
 name = "cfd"
 authors = ["Aleksander Evensen"]
 description = "Finding directories using a fuzzy finding algorithm"
-version = "0.1.0"
+version = "1.0.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
