@@ -1,33 +1,32 @@
-use std::{fs, path::PathBuf, sync::mpsc::Sender};
+use std::{collections::VecDeque, fs, path::PathBuf, sync::mpsc::Sender};
 
-pub fn run(root_path: PathBuf, depth: u8, sender: Sender<PathBuf>) {
-    recurse(root_path, 1, depth, &sender);
+struct PathEntry {
+    path: PathBuf,
+    depth: u8,
 }
 
-fn recurse(path: PathBuf, depth: u8, max_depth: u8, sender: &Sender<PathBuf>) -> Vec<PathBuf> {
-    let mut paths = vec![];
-    let children = get_all_dirs(path);
-    children.iter().for_each(|child| {
-        sender.send(child.clone()).unwrap();
-    });
-    paths.append(&mut children.clone());
+pub fn run(root_path: PathBuf, max_depth: u8, sender: Sender<PathBuf>) {
+    let mut search_queue: VecDeque<PathEntry> = get_all_dirs(&root_path, 1);
 
-    if depth < max_depth {
-        for child in children {
-            paths.append(&mut recurse(child, depth + 1, max_depth, sender))
+    while let Some(next_dir) = search_queue.pop_front() {
+        if next_dir.depth < max_depth {
+            search_queue.append(&mut get_all_dirs(&next_dir.path, next_dir.depth + 1));
         }
+        sender.send(next_dir.path).unwrap();
     }
-
-    return paths;
+    drop(sender);
 }
 
-fn get_all_dirs(path: PathBuf) -> Vec<PathBuf> {
-    let mut paths: Vec<PathBuf> = vec![];
+fn get_all_dirs(path: &PathBuf, depth: u8) -> VecDeque<PathEntry> {
+    let mut paths: VecDeque<PathEntry> = VecDeque::new();
     if let Ok(entries) = fs::read_dir(path) {
         for entry in entries {
             if let Ok(entry) = entry {
                 if entry.metadata().unwrap().is_dir() {
-                    paths.push(entry.path());
+                    paths.push_back(PathEntry {
+                        path: entry.path(),
+                        depth,
+                    });
                 }
             }
         }
