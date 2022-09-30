@@ -23,9 +23,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
     // setup terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
+    let mut stdout = io::stderr();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    enable_raw_mode()?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -52,7 +52,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                 println!("{}", result);
             }
         }
-        _ => {}
+        Err(_) => {
+            eprintln!("{}", "Shit");
+            std::process::exit(1)
+        }
     }
 
     Ok(())
