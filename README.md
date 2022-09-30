@@ -2,11 +2,13 @@
 
 A fuzzy finder alternative to the classic `cd` command
 
-This program doesn't change the current working directory, and needs to be paired up with a shell script
+![CFD in action](images/showcase.gif)
+
+This standalone exe can't change the current working directory, and needs to be paired up with a shell script
 
 PowerShell:
 
-```ps
+```PowerShell
 function cfd {
 	# Run Executable
 	$result = . "./path/to/cfd/binary.exe" $args # Or "cfd" if cfd is in your path
@@ -15,8 +17,8 @@ function cfd {
 	if ($result) {
 
 		# Set Location to the returned value
-        Set-Location $result
-    }
+		Set-Location $result
+	}
 }
 ```
 
@@ -28,5 +30,3 @@ cfd() {
     [ -n "$result" ] && cd -- "$result"
 }
 ```
-
-![CFD in action](images/showcase.gif)
